@@ -1,17 +1,22 @@
 import logging
 from urllib.parse import urlparse, parse_qs
+import inspect
 
 from fastapi import FastAPI, HTTPException
 from youtube_transcript_api import (NoTranscriptFound, TranscriptsDisabled,
                                     YouTubeTranscriptApi)
-import inspect  # <-- ADD THIS LINE
 
-# ADD THIS PRINT STATEMENT TO DEBUG
-print(f"DEBUG: YouTubeTranscriptApi is being imported from: {inspect.getfile(YouTubeTranscriptApi)}")
+# === START NEW DEBUGGING CODE ===
+# We will print the attributes of the class as soon as the module is loaded.
+print("--- DEBUGGING AT MODULE LOAD ---")
+try:
+    print(f"Inspecting file: {inspect.getfile(YouTubeTranscriptApi)}")
+    print(f"DIR on YouTubeTranscriptApi at load: {dir(YouTubeTranscriptApi)}")
+except Exception as e:
+    print(f"Error during initial inspection: {e}")
+print("--- END DEBUGGING AT MODULE LOAD ---")
+# === END NEW DEBUGGING CODE ===
 
-# Configure logging to see output in Railway's logs
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 app = FastAPI(
     title="YouTube Transcript Service",
@@ -43,8 +48,6 @@ def get_video_id(url: str) -> str | None:
 async def get_youtube_transcript(video_url: str):
     """
     Fetches the transcript for a given YouTube video URL.
-    It will prioritize English, Spanish, French, or German transcripts,
-    but will fall back to any other available transcript if necessary.
     """
     if not video_url:
         raise HTTPException(
@@ -58,28 +61,26 @@ async def get_youtube_transcript(video_url: str):
     logging.info(f"Processing request for video ID: {video_id}")
 
     try:
+        # === START NEW DEBUGGING CODE ===
+        # We will print the attributes again, right before the call that fails.
+        logging.info("--- DEBUGGING AT RUNTIME ---")
+        logging.info(f"DIR on YouTubeTranscriptApi at runtime: {dir(YouTubeTranscriptApi)}")
+        logging.info("--- END DEBUGGING AT RUNTIME ---")
+        # === END NEW DEBUGGING CODE ===
+
         transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
         
-        # Define a priority of languages for transcript selection
         language_priority = ['en', 'es', 'fr', 'de']
         transcript = None
 
-        # Try to find a transcript in the prioritized languages
         for lang in language_priority:
             try:
                 transcript = transcript_list.find_transcript([lang])
-                logging.info(f"Found prioritized transcript in '{lang}' for video ID: {video_id}")
                 break
             except NoTranscriptFound:
                 continue
         
-        # If no prioritized transcript is found, fall back to the first available one
         if not transcript:
-            logging.warning(
-                f"No prioritized transcript found for video ID: {video_id}. "
-                "Falling back to the first available transcript."
-            )
-            # The transcript list object is iterable
             first_available = next(iter(transcript_list), None)
             if first_available:
                 transcript = first_available
@@ -88,8 +89,6 @@ async def get_youtube_transcript(video_url: str):
             raise NoTranscriptFound("No transcripts were found for this video.")
 
         fetched_transcript = transcript.fetch()
-        logging.info(f"Successfully fetched transcript for video ID: {video_id}")
-        
         return {
             "video_id": video_id,
             "language": transcript.language,
@@ -100,20 +99,16 @@ async def get_youtube_transcript(video_url: str):
 
     except TranscriptsDisabled:
         logging.warning(f"Transcripts are disabled for video ID: {video_id}")
-        raise HTTPException(
-            status_code=403, detail="Transcripts are disabled for this video.")
+        raise HTTPException(status_code=403, detail="Transcripts are disabled for this video.")
     except NoTranscriptFound as e:
         logging.warning(f"No transcript found for video ID {video_id}: {e}")
-        raise HTTPException(
-            status_code=404, detail=f"No transcript found for this video: {e}")
+        raise HTTPException(status_code=404, detail=f"No transcript found for this video: {e}")
     except Exception as e:
         logging.error(f"An unexpected error occurred for video ID {video_id}: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"An internal server error occurred: {e}")
+        raise HTTPException(status_code=500, detail=f"An internal server error occurred: {str(e)}")
 
 
 @app.get("/")
 async def read_root():
     """A welcome message for the service root."""
-    return {"message": "Welcome to the YouTube Transcript API Service. "
-                     "Use the /docs endpoint to see API documentation."}
+    return {"message": "Welcome to the YouTube Transcript API Service."}
