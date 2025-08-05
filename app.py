@@ -12,12 +12,13 @@ logging.basicConfig(level=logging.INFO,
 app = FastAPI(
     title="YouTube Transcript Service",
     description="An API to fetch the transcript of a YouTube video.",
-    version="1.0.0",
+    version="2.0.0-workaround",
 )
 
 
 def get_video_id(url: str) -> str | None:
     """Extracts the YouTube video ID from various URL formats."""
+    # This function is correct and needs no changes.
     if not url:
         return None
     try:
@@ -39,8 +40,7 @@ def get_video_id(url: str) -> str | None:
 async def get_youtube_transcript(video_url: str):
     """
     Fetches the transcript for a given YouTube video URL.
-    It will prioritize English, Spanish, French, or German transcripts,
-    but will fall back to any other available transcript if necessary.
+    NOTE: This version uses a deprecated function as a workaround for a platform issue.
     """
     if not video_url:
         raise HTTPException(
@@ -51,44 +51,15 @@ async def get_youtube_transcript(video_url: str):
         raise HTTPException(
             status_code=400, detail="Could not extract a valid YouTube video ID from the URL.")
 
-    logging.info(f"Processing request for video ID: {video_id}")
+    logging.info(f"Processing request for video ID: {video_id} (using deprecated get_transcript)")
 
     try:
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        # === THIS IS THE CRITICAL CHANGE ===
+        # We are calling the old .get_transcript() method instead of .list_transcripts()
+        transcript = YouTubeTranscriptApi.get_transcript(video_id)
         
-        language_priority = ['en', 'es', 'fr', 'de']
-        transcript = None
-
-        for lang in language_priority:
-            try:
-                transcript = transcript_list.find_transcript([lang])
-                logging.info(f"Found prioritized transcript in '{lang}' for video ID: {video_id}")
-                break
-            except NoTranscriptFound:
-                continue
-        
-        if not transcript:
-            logging.warning(
-                f"No prioritized transcript found for video ID: {video_id}. "
-                "Falling back to the first available transcript."
-            )
-            first_available = next(iter(transcript_list), None)
-            if first_available:
-                transcript = first_available
-
-        if not transcript:
-            raise NoTranscriptFound("No transcripts were found for this video.")
-
-        fetched_transcript = transcript.fetch()
-        logging.info(f"Successfully fetched transcript for video ID: {video_id}")
-        
-        return {
-            "video_id": video_id,
-            "language": transcript.language,
-            "language_code": transcript.language_code,
-            "is_generated": transcript.is_generated,
-            "transcript": fetched_transcript
-        }
+        # If we get here, it worked. Return the result directly.
+        return {"video_id": video_id, "transcript": transcript}
 
     except TranscriptsDisabled:
         logging.warning(f"Transcripts are disabled for video ID: {video_id}")
@@ -107,5 +78,4 @@ async def get_youtube_transcript(video_url: str):
 @app.get("/")
 async def read_root():
     """A welcome message for the service root."""
-    return {"message": "Welcome to the YouTube Transcript API Service. "
-                     "Use the /docs endpoint to see API documentation."}
+    return {"message": "YouTube Transcript API Service (Workaround Active)"}
