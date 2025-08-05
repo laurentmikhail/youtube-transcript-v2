@@ -4,6 +4,10 @@ from urllib.parse import urlparse, parse_qs
 from fastapi import FastAPI, HTTPException
 from youtube_transcript_api import (NoTranscriptFound, TranscriptsDisabled,
                                     YouTubeTranscriptApi)
+import inspect  # <-- ADD THIS LINE
+
+# ADD THIS PRINT STATEMENT TO DEBUG
+print(f"DEBUG: YouTubeTranscriptApi is being imported from: {inspect.getfile(YouTubeTranscriptApi)}")
 
 # Configure logging to see output in Railway's logs
 logging.basicConfig(level=logging.INFO,
