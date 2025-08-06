@@ -1,18 +1,26 @@
-# 1. Use an official Python base image
-# This gives us a clean Linux OS with Python pre-installed.
+# 1. Use a clean, official Python base image
 FROM python:3.11-slim
 
-# 2. Set the working directory inside the container
+# 2. Set environment variables
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+# 3. Set the working directory
 WORKDIR /app
 
-# 3. Copy and install dependencies
-# This copies the requirements file first to leverage Docker's caching.
+# 4. Copy and install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 4. Copy the rest of the application code
+# 5. Copy the entrypoint script and the rest of the app
+COPY ./entrypoint.sh .
 COPY . .
 
-# 5. Define the command to run the application
-# This is what the Procfile used to do. Note that Railway provides the $PORT variable.
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080"]
+# 6. Make the entrypoint script executable
+RUN chmod +x ./entrypoint.sh
+
+# 7. Set the entrypoint
+ENTRYPOINT ["./entrypoint.sh"]
+
+# 8. Define the command that the entrypoint will run
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "$PORT"]
